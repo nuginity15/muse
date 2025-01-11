@@ -2,8 +2,7 @@ services:
   - name: muse
     type: web
     env: docker
-    docker:
-      image: ghcr.io/museofficial/muse:latest
+    image: ghcr.io/museofficial/muse:latest
     envVars:
       - key: DISCORD_TOKEN
         value: OTMwODczNzcxNjYzOTgyNjEy.GNZSra.FTYJWzl2I9vQDVD4OUuMwYPX_B-SY0KWddqeSE
