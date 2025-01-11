@@ -2,7 +2,11 @@ services:
   - name: muse
     type: web
     env: docker
-    image: ghcr.io/museofficial/muse:pr-1183
+    plan: free
+    buildCommand: ""
+    startCommand: ""
+    docker:
+      image: ghcr.io/museofficial/muse:latest
     envVars:
       - key: DISCORD_TOKEN
         value: OTMwODczNzcxNjYzOTgyNjEy.GNZSra.FTYJWzl2I9vQDVD4OUuMwYPX_B-SY0KWddqeSE
@@ -15,21 +19,19 @@ services:
       - key: BOT_ACTIVITY_TYPE
         value: WATCHING
       - key: BOT_ACTIVITY
-        value: /play untuk memutar lagu
+        value: "/play untuk memutar lagu"
     volumes:
       - path: /data
-        name: muse-data
-    startCommand: ""
-    mounts:
-      - type: volume
-        name: muse-data
         mountPath: /data
     dependsOn:
       - warp
 
   - name: warp
-    type: worker
+    type: web
     env: docker
+    plan: free
+    buildCommand: ""
+    startCommand: ""
     docker:
       image: caomingjun/warp
     envVars:
@@ -37,19 +39,16 @@ services:
         value: "2"
       - key: WARP_LICENSE_KEY
         value: S219k3pz-r1Uj6K79-1zkO062H
-    mounts:
-      - type: volume
-        name: warp-data
+    volumes:
+      - path: /var/lib/cloudflare-warp
         mountPath: /var/lib/cloudflare-warp
-    startCommand: ""
-    capAdd:
-      - NET_ADMIN
-    sysctls:
-      - net.ipv6.conf.all.disable_ipv6=0
-      - net.ipv4.conf.all.src_valid_mark=1
-    devices:
-      - path: /dev/net/tun
-
-volumes:
-  - name: muse-data
-  - name: warp-data
+    dockerOptions:
+      capAdd:
+        - NET_ADMIN
+      sysctls:
+        - net.ipv6.conf.all.disable_ipv6=0
+        - net.ipv4.conf.all.src_valid_mark=1
+    ports:
+      - name: socks-proxy
+        protocol: TCP
+        port: 1080
