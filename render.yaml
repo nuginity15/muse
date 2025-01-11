@@ -1,0 +1,56 @@
+services:
+  - name: muse
+    type: web
+    env: docker
+    docker:
+      image: ghcr.io/museofficial/muse:latest
+    envVars:
+      - key: DISCORD_TOKEN
+        value: OTMwODczNzcxNjYzOTgyNjEy.GNZSra.FTYJWzl2I9vQDVD4OUuMwYPX_B-SY0KWddqeSE
+      - key: YOUTUBE_API_KEY
+        value: AIzaSyC3hur5C3PRknA3rKaXIErdFasebVb7Y7E
+      - key: ENABLE_SPONSORBLOCK
+        value: "true"
+      - key: BOT_STATUS
+        value: online
+      - key: BOT_ACTIVITY_TYPE
+        value: WATCHING
+      - key: BOT_ACTIVITY
+        value: /play untuk memutar lagu
+    volumes:
+      - path: /data
+        name: muse-data
+    startCommand: ""
+    mounts:
+      - type: volume
+        name: muse-data
+        mountPath: /data
+    dependsOn:
+      - warp
+
+  - name: warp
+    type: worker
+    env: docker
+    docker:
+      image: caomingjun/warp
+    envVars:
+      - key: WARP_SLEEP
+        value: "2"
+      - key: WARP_LICENSE_KEY
+        value: S219k3pz-r1Uj6K79-1zkO062H
+    mounts:
+      - type: volume
+        name: warp-data
+        mountPath: /var/lib/cloudflare-warp
+    startCommand: ""
+    capAdd:
+      - NET_ADMIN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.conf.all.src_valid_mark=1
+    devices:
+      - path: /dev/net/tun
+
+volumes:
+  - name: muse-data
+  - name: warp-data
