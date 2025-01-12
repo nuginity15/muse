@@ -21,6 +21,21 @@ import debug from '../utils/debug.js';
 import {getGuildSettings} from '../utils/get-guild-settings.js';
 import {buildPlayingMessageEmbed} from '../utils/build-embed.js';
 import {Setting} from '@prisma/client';
+import fs from 'fs'; // Required for reading cookies file
+
+function getCookiesFromFile(filePath: string): string {
+  try {
+      return fs.readFileSync(filePath, 'utf-8');
+  } catch (error) {
+      console.error('Failed to read cookies file:', error);
+      return '';
+  }
+}
+
+// Example path to your cookies file
+const cookiesFilePath = './cookies.txt'; // Adjust the path as needed
+const cookies = getCookiesFromFile(cookiesFilePath);
+
 
 export enum MediaSource {
   Youtube,
@@ -90,6 +105,8 @@ export default class {
     this.guildId = guildId;
   }
 
+  
+
   async connect(channel: VoiceChannel): Promise<void> {
     // Always get freshest default volume setting value
     const settings = await getGuildSettings(this.guildId);
@@ -126,6 +143,8 @@ export default class {
       }
     });
   }
+
+  
 
   disconnect(): void {
     if (this.voiceConnection) {
@@ -515,7 +534,13 @@ export default class {
 
     if (!ffmpegInput) {
       // Not yet cached, must download
-      const info = await ytdl.getInfo(song.url);
+      const info = await ytdl.getInfo(videoUrl, {
+        requestOptions: {
+            headers: {
+                Cookie: cookies, // Menyisipkan cookies ke header permintaan
+            },
+        },
+    });
 
       const formats = info.formats as YTDLVideoFormat[];
 
