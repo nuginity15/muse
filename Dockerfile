@@ -1,39 +1,57 @@
-# Base image for muse
-FROM ubuntu:20.04
+FROM node:18-bullseye-slim AS base
+
+# openssl will be a required package if base is updated to 18.16+ due to node:*-slim base distro change
+# https://github.com/prisma/prisma/issues/19729#issuecomment-1591270599
+# Install ffmpeg
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+    ffmpeg \
+    tini \
+    openssl \
+    ca-certificates \
+    && apt-get autoclean \
+    && apt-get autoremove \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    iproute2 \
-    nodejs \
-    npm \
-    python3 \
-    iputils-ping \
-    git && \
-    rm -rf /var/lib/apt/lists/*
+FROM base AS dependencies
 
-# Install warp
-RUN curl -fsSL https://pkg.cloudflareclient.com/install.sh | bash && apt-get install -y cloudflare-warp
+WORKDIR /usr/app
 
+COPY package.json .
+COPY yarn.lock .
 
-RUN echo "net.ipv6.conf.all.disable_ipv6=0" >> /etc/sysctl.conf && \
-    echo "net.ipv4.conf.all.src_valid_mark=1" >> /etc/sysctl.conf
+RUN yarn install --prod
+RUN cp -R node_modules /usr/app/prod_node_modules
 
-# Create directories for warp and muse
-WORKDIR /app
+RUN yarn install
 
-# Install muse
-RUN git clone https://github.com/museofficial/muse.git /app/muse
-WORKDIR /app/muse
-RUN npm install
+FROM dependencies AS builder
 
+COPY . .
 
-# Expose warp port
-EXPOSE 1080
+# Run tsc build
+RUN yarn prisma generate
+RUN yarn build
 
-# Copy supervisord configuration
-RUN apt-get install -y supervisor
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Only keep what's necessary to run
+FROM base AS runner
 
-# Command to start both services
-CMD ["supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+WORKDIR /usr/app
+
+COPY --from=builder /usr/app/dist ./dist
+COPY --from=dependencies /usr/app/prod_node_modules node_modules
+COPY --from=builder /usr/app/node_modules/.prisma/client ./node_modules/.prisma/client
+
+COPY . .
+
+ARG COMMIT_HASH=unknown
+ARG BUILD_DATE=unknown
+
+ENV DATA_DIR=/data
+ENV NODE_ENV=production
+ENV COMMIT_HASH=$COMMIT_HASH
+ENV BUILD_DATE=$BUILD_DATE
+ENV ENV_FILE=/config
+
+CMD ["tini", "--", "node", "--enable-source-maps", "dist/scripts/migrate-and-start.js"]
